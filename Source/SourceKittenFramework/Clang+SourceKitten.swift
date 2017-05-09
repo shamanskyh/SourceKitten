@@ -120,7 +120,11 @@ extension CXCursor {
                 let categoryName = ext ? "" : usrNSString.substring(with: matches[0].rangeAt(2))
                 return "\(categoryOn)(\(categoryName))"
             } else {
-                fatalError("Couldn't get category name")
+                // Sometimes we have categories on third-party libraries and we want to document the categories
+                // without documenting the library. Handle that case here rather than fatalErroring
+                // TODO: (hshamansky) improve this output.
+                return "Unknown Category"
+                //fatalError("Couldn't get category name")
             }
         }
         let spelling = clang_getCursorSpelling(self).str()!

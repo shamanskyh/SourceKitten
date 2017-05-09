@@ -119,12 +119,20 @@ extension CXCursor {
                 let categoryOn = usrNSString.substring(with: matches[0].rangeAt(1))
                 let categoryName = ext ? "" : usrNSString.substring(with: matches[0].rangeAt(2))
                 return "\(categoryOn)(\(categoryName))"
-            } else {
+            } else if let declaration = declaration() {
                 // Sometimes we have categories on third-party libraries and we want to document the categories
                 // without documenting the library. Handle that case here rather than fatalErroring
-                // TODO: (hshamansky) improve this output.
-                return "Unknown Category"
-                //fatalError("Couldn't get category name")
+                if let interfaceRange = declaration.range(of: "@interface"),
+                    let categoryStartRange = declaration.range(of: "("),
+                    let categoryEndRange = declaration.range(of: ")") {
+                    let categoryOn = declaration.substring(with: interfaceRange.upperBound..<categoryStartRange.lowerBound).trimmingCharacters(in: .whitespaces)
+                    let categoryName = declaration.substring(with: categoryStartRange.upperBound..<categoryEndRange.lowerBound).trimmingCharacters(in: .whitespaces)
+                    return "\(categoryOn)(\(categoryName))"
+                } else {
+                    return "Unknown Category"
+                }
+            } else {
+                fatalError("Couldn't get category name or declaration")
             }
         }
         let spelling = clang_getCursorSpelling(self).str()!

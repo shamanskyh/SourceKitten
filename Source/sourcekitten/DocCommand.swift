@@ -104,7 +104,7 @@ struct DocCommand: CommandProtocol {
                 let translationUnit = ClangTranslationUnit(headerFiles: [args[0]], compilerArguments: Array(args.dropFirst(1)))
                 print(translationUnit)
             }
-            return .success()
+            return .success(())
         #endif
     }
 }

@@ -30,7 +30,7 @@ func compareJSONString(withFixtureNamed name: String,
                                                                    withTemplate: "\"key\\.filepath\" : \"\",")
     #endif
 
-    let expectedFile = File(path: fixturesDirectory + name + ".json")!
+    let expectedFile = File(path: versionedExpectedFilename(for: name))!
 
     let overwrite = false
     if overwrite && actualContent != expectedFile.contents {
@@ -58,36 +58,54 @@ func compareJSONString(withFixtureNamed name: String,
 private func compareDocs(withFixtureNamed name: String, file: StaticString = #file, line: UInt = #line) {
     let swiftFilePath = fixturesDirectory + name + ".swift"
     let docs = SwiftDocs(file: File(path: swiftFilePath)!, arguments: ["-j4", swiftFilePath])!
-#if os(Linux)
-    let name = "Linux" + name
-#endif
     compareJSONString(withFixtureNamed: name, jsonString: docs, file: file, line: line)
+}
+
+private func versionedExpectedFilename(for name: String) -> String {
+    #if swift(>=4.0)
+        let versions = ["swift-4.0", "swift-3.2", "swift-3.1"]
+    #elseif swift(>=3.2)
+        let versions = ["swift-3.2", "swift-3.1"]
+    #else // if swift(>=3.1)
+        let versions = ["swift-3.1"]
+    #endif
+    #if os(Linux)
+        let platforms = ["Linux", ""]
+    #else
+        let platforms = [""]
+    #endif
+    for version in versions {
+        for platform in platforms {
+            let versionedFilename = "\(fixturesDirectory)\(platform)\(name)@\(version).json"
+            if FileManager.default.fileExists(atPath: versionedFilename) {
+                return versionedFilename
+            }
+        }
+    }
+    return "\(fixturesDirectory)\(name).json"
 }
 
 class SwiftDocsTests: XCTestCase {
 
     func testSubscript() {
-    #if swift(>=3.1) && os(Linux)
-        // FIXME
-        print("FIXME: Skip \(#function), because our sourcekitInProc on Swift 3.1 for Linux seems to be broken")
-    #else
         compareDocs(withFixtureNamed: "Subscript")
-    #endif
     }
 
     func testBicycle() {
-    #if swift(>=3.1) && os(Linux)
-        // FIXME
-        print("FIXME: Skip \(#function), because our sourcekitInProc on Swift 3.1 for Linux seems to be broken")
-    #else
         compareDocs(withFixtureNamed: "Bicycle")
-    #endif
+    }
+
+    func testExtension() {
+        compareDocs(withFixtureNamed: "Extension")
     }
 
     func testParseFullXMLDocs() {
         // swiftlint:disable:next line_length
-        let xmlDocsString = "<Type file=\"file\" line=\"1\" column=\"2\"><Name>name</Name><USR>usr</USR><Declaration>declaration</Declaration><Abstract><Para>discussion</Para></Abstract><Parameters><Parameter><Name>param1</Name><Direction isExplicit=\"0\">in</Direction><Discussion><Para>param1_discussion</Para></Discussion></Parameter></Parameters><ResultDiscussion><Para>result_discussion</Para></ResultDiscussion></Type>"
-        let parsed = parseFullXMLDocs(xmlDocsString)!
+        let xmlDocsStringPreSwift32 = "<Type file=\"file\" line=\"1\" column=\"2\"><Name>name</Name><USR>usr</USR><Declaration>declaration</Declaration><Abstract><Para>discussion</Para></Abstract><Parameters><Parameter><Name>param1</Name><Direction isExplicit=\"0\">in</Direction><Discussion><Para>param1_discussion</Para></Discussion></Parameter></Parameters><ResultDiscussion><Para>result_discussion</Para></ResultDiscussion></Type>"
+        // swiftlint:disable:next line_length
+        let xmlDocsStringSwift32 = "<Type file=\"file\" line=\"1\" column=\"2\"><Name>name</Name><USR>usr</USR><Declaration>declaration</Declaration><CommentParts><Abstract><Para>discussion</Para></Abstract><Parameters><Parameter><Name>param1</Name><Direction isExplicit=\"0\">in</Direction><Discussion><Para>param1_discussion</Para></Discussion></Parameter></Parameters><ResultDiscussion><Para>result_discussion</Para></ResultDiscussion></CommentParts></Type>"
+        let parsedPreSwift32 = parseFullXMLDocs(xmlDocsStringPreSwift32)!
+        let parsedSwift32 = parseFullXMLDocs(xmlDocsStringSwift32)!
         let expected: NSDictionary = [
             "key.doc.type": "Type",
             "key.doc.file": "file",
@@ -102,7 +120,8 @@ class SwiftDocsTests: XCTestCase {
             ]],
             "key.doc.result_discussion": [["Para": "result_discussion"]]
         ]
-        XCTAssertEqual(toNSDictionary(parsed), expected)
+        XCTAssertEqual(toNSDictionary(parsedPreSwift32), expected)
+        XCTAssertEqual(toNSDictionary(parsedSwift32), expected)
     }
 }
 
@@ -110,7 +129,8 @@ extension SwiftDocsTests {
     static var allTests: [(String, (SwiftDocsTests) -> () throws -> Void)] {
         return [
             ("testSubscript", testSubscript),
-            ("testBicycle", testBicycle)
+            ("testBicycle", testBicycle),
+            ("testExtension", testExtension)
             // Fails on Linux
             // ("testParseFullXMLDocs", testParseFullXMLDocs),
         ]

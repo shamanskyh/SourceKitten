@@ -18,7 +18,7 @@ class CodeCompletionTests: XCTestCase {
             Request.codeCompletionRequest(file: file, contents: "0.", offset: 2,
                 arguments: ["-c", file, "-sdk", sdkPath()]).send())
         compareJSONString(withFixtureNamed: "SimpleCodeCompletion",
-            jsonString: completionItems)
+                          jsonString: completionItems)
     }
 }
 

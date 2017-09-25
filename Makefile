@@ -79,14 +79,14 @@ archive:
 release: package archive
 
 docker_test:
-	docker run -v `pwd`:`pwd` -w `pwd` norionomura/sourcekit:311 swift test
+	docker run -v `pwd`:`pwd` -w `pwd` --rm norionomura/sourcekit:311 swift test
 
-docker_test_302:
-	docker run -v `pwd`:`pwd` -w `pwd` norionomura/sourcekit:302 swift test
+docker_test_4:
+	docker run -v `pwd`:`pwd` -w `pwd` --rm norionomura/swift:4020170908a swift test
 
 # http://irace.me/swift-profiling/
 display_compilation_time:
-	$(BUILD_TOOL) $(XCODEFLAGS) OTHER_SWIFT_FLAGS="-Xfrontend -debug-time-function-bodies" clean build-for-testing | grep -E ^[1-9]{1}[0-9]*.[0-9]ms | sort -n
+	$(BUILD_TOOL) $(XCODEFLAGS) OTHER_SWIFT_FLAGS="-Xfrontend -debug-time-function-bodies" clean build-for-testing | grep -E ^[1-9]{1}[0-9]*.[0-9]+ms | sort -n
 
 publish:
 	brew update && brew bump-formula-pr --tag=$(shell git describe --tags) --revision=$(shell git rev-parse HEAD) sourcekitten
@@ -97,6 +97,8 @@ get_version:
 
 set_version:
 	$(eval NEW_VERSION := $(filter-out $@,$(MAKECMDGOALS)))
+	@sed -i '' 's/## Master/## $(NEW_VERSION)/g' CHANGELOG.md
+	@sed 's/__VERSION__/$(NEW_VERSION)/g' script/Version.swift.template > Source/SourceKittenFramework/Version.swift
 	@/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(NEW_VERSION)" "$(SOURCEKITTENFRAMEWORK_PLIST)"
 	@/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(NEW_VERSION)" "$(SOURCEKITTEN_PLIST)"
 

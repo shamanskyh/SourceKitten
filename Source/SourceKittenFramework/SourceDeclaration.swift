@@ -146,7 +146,7 @@ extension Sequence where Iterator.Element == SourceDeclaration {
     /// Removes implicitly generated property getters & setters
     func rejectPropertyMethods() -> [SourceDeclaration] {
         let propertyGetterSetterUSRs = filter {
-            $0.type == .property
+            $0.type == .property && $0.usr != nil && $0.usr!.count > 0
         }.flatMap {
             [$0.getterUSR, $0.setterUSR]
         }

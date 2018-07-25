@@ -108,8 +108,10 @@ extension CXCursor {
 
     func str() -> String? {
         let cursorExtent = extent()
-        let contents = try! String(contentsOfFile: cursorExtent.start.file, encoding: .utf8)
-        return contents.substringWithSourceRange(start: cursorExtent.start, end: cursorExtent.end)
+        if let contents = try? String(contentsOfFile: cursorExtent.start.file, encoding: .utf8) {
+            return contents.substringWithSourceRange(start: cursorExtent.start, end: cursorExtent.end)
+        }
+        return nil
     }
 
     func name() -> String {

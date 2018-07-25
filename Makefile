@@ -7,18 +7,19 @@ XCODEFLAGS=-workspace 'SourceKitten.xcworkspace' \
 	DSTROOT=$(TEMPORARY_FOLDER) \
 	OTHER_LDFLAGS=-Wl,-headerpad_max_install_names
 
-APPLICATIONS_FOLDER=$(TEMPORARY_FOLDER)/Applications
-BUILT_BUNDLE=$(APPLICATIONS_FOLDER)/sourcekitten.app
-SOURCEKITTEN_FRAMEWORK_BUNDLE=$(BUILT_BUNDLE)/Contents/Frameworks/SourceKittenFramework.framework
-SOURCEKITTEN_EXECUTABLE=$(BUILT_BUNDLE)/Contents/MacOS/sourcekitten
-SWIFT_STANDARD_LIBRARIES=$(BUILT_BUNDLE)/Contents/Frameworks/libswift*
+SWIFT_BUILD_FLAGS=--configuration release
+UNAME=$(shell uname)
+ifeq ($(UNAME), Darwin)
+SWIFT_BUILD_FLAGS+= -Xswiftc -static-stdlib
+endif
+
+SOURCEKITTEN_EXECUTABLE=$(shell swift build $(SWIFT_BUILD_FLAGS) --show-bin-path)/sourcekitten
 
 FRAMEWORKS_FOLDER=$(PREFIX)/Frameworks
 BINARIES_FOLDER=$(PREFIX)/bin
 
 OUTPUT_PACKAGE=SourceKitten.pkg
 
-COMPONENTS_PLIST=Source/sourcekitten/Components.plist
 SOURCEKITTEN_PLIST=Source/sourcekitten/Info.plist
 SOURCEKITTENFRAMEWORK_PLIST=Source/SourceKittenFramework/Info.plist
 
@@ -26,46 +27,46 @@ VERSION_STRING=$(shell /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionSt
 
 .PHONY: all bootstrap clean install package test uninstall
 
-all: bootstrap
-	$(BUILD_TOOL) $(XCODEFLAGS) build
+all: build
 
 bootstrap:
 	script/bootstrap
 
-test: clean bootstrap
+test: clean_xcode bootstrap
 	$(BUILD_TOOL) $(XCODEFLAGS) test
 
 clean:
 	rm -f "$(OUTPUT_PACKAGE)"
 	rm -rf "$(TEMPORARY_FOLDER)"
-	$(BUILD_TOOL) $(XCODEFLAGS) -configuration Debug clean
-	$(BUILD_TOOL) $(XCODEFLAGS) -configuration Release clean
+	swift package clean
+
+clean_xcode: clean
 	$(BUILD_TOOL) $(XCODEFLAGS) -configuration Test clean
 
-install: package
-	sudo installer -pkg SourceKitten.pkg -target /
+build:
+	swift build $(SWIFT_BUILD_FLAGS)
+
+build_with_disable_sandbox:
+	swift build --disable-sandbox $(SWIFT_BUILD_FLAGS)
+
+install: clean build
+	install -d "$(BINARIES_FOLDER)"
+	install "$(SOURCEKITTEN_EXECUTABLE)" "$(BINARIES_FOLDER)"
 
 uninstall:
 	rm -rf "$(FRAMEWORKS_FOLDER)/SourceKittenFramework.framework"
 	rm -f "$(BINARIES_FOLDER)/sourcekitten"
 
-installables: clean bootstrap
-	$(BUILD_TOOL) $(XCODEFLAGS) install
+installables: clean build
+	install -d "$(TEMPORARY_FOLDER)$(BINARIES_FOLDER)"
+	install "$(SOURCEKITTEN_EXECUTABLE)" "$(TEMPORARY_FOLDER)$(BINARIES_FOLDER)"
 
-	mkdir -p "$(TEMPORARY_FOLDER)$(FRAMEWORKS_FOLDER)" "$(TEMPORARY_FOLDER)$(BINARIES_FOLDER)"
-	mv -f "$(SOURCEKITTEN_FRAMEWORK_BUNDLE)" "$(TEMPORARY_FOLDER)$(FRAMEWORKS_FOLDER)/SourceKittenFramework.framework"
-	mv -f "$(SOURCEKITTEN_EXECUTABLE)" "$(TEMPORARY_FOLDER)$(BINARIES_FOLDER)/sourcekitten"
-	mv -f $(SWIFT_STANDARD_LIBRARIES) "$(TEMPORARY_FOLDER)$(FRAMEWORKS_FOLDER)/SourceKittenFramework.framework/Versions/A/Frameworks"
-	rm -rf "$(APPLICATIONS_FOLDER)"
-
-prefix_install: installables
-	mkdir -p "$(FRAMEWORKS_FOLDER)" "$(BINARIES_FOLDER)"
-	cp -Rf "$(TEMPORARY_FOLDER)$(FRAMEWORKS_FOLDER)/SourceKittenFramework.framework" "$(FRAMEWORKS_FOLDER)/"
-	cp -f "$(TEMPORARY_FOLDER)$(BINARIES_FOLDER)/sourcekitten" "$(BINARIES_FOLDER)/"
+prefix_install: clean build_with_disable_sandbox
+	install -d "$(PREFIX)/bin/"
+	install "$(SOURCEKITTEN_EXECUTABLE)" "$(PREFIX)/bin/"
 
 package: installables
 	pkgbuild \
-		--component-plist "$(COMPONENTS_PLIST)" \
 		--identifier "com.sourcekitten.SourceKitten" \
 		--install-location "/" \
 		--root "$(TEMPORARY_FOLDER)" \
@@ -79,10 +80,7 @@ archive:
 release: package archive
 
 docker_test:
-	docker run -v `pwd`:`pwd` -w `pwd` --rm norionomura/sourcekit:311 swift test
-
-docker_test_4:
-	docker run -v `pwd`:`pwd` -w `pwd` --rm norionomura/swift:4020170908a swift test
+	docker run -v `pwd`:`pwd` -w `pwd` --rm norionomura/swift:40 swift test
 
 # http://irace.me/swift-profiling/
 display_compilation_time:
@@ -90,7 +88,15 @@ display_compilation_time:
 
 publish:
 	brew update && brew bump-formula-pr --tag=$(shell git describe --tags) --revision=$(shell git rev-parse HEAD) sourcekitten
-	pod trunk push
+	pod trunk push --verbose
+
+update_clang_headers:
+	rm -rf Source/Clang_C/include
+	svn export http://llvm.org/svn/llvm-project/cfe/trunk/include/clang-c
+	mv clang-c Source/Clang_C/include
+	rm Source/Clang_C/include/module.modulemap
+	echo '#include "BuildSystem.h"\n#include "CXCompilationDatabase.h"\n#include "CXErrorCode.h"\n#include "CXString.h"\n#include "Documentation.h"\n#include "Index.h"\n#include "Platform.h"' > Source/Clang_C/include/Clang_C.h
+	sed -i '' "s/^#include \"clang-c\/\(.*\)\"/#include \"\1\"/g" Source/Clang_C/include/*
 
 get_version:
 	@echo $(VERSION_STRING)

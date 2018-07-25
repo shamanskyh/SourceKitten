@@ -12,6 +12,193 @@
 
 * None.
 
+## 0.21.1
+
+##### Breaking
+
+* None.
+
+##### Enhancements
+
+* None.
+
+##### Bug Fixes
+
+* Support building with Swift 4.2. There are still runtime issues to resolve.  
+  [Norio Nomura](https://github.com/norio-nomura)
+
+* Fix a crash when running with Swift 4.2.  
+  [Norio Nomura](https://github.com/norio-nomura)
+  [SR-7954](https://bugs.swift.org/browse/SR-7954)
+
+## 0.21.0
+
+##### Breaking
+
+* SourceKitten now requires Swift 4.0 or higher to build.  
+  [JP Simard](https://github.com/jpsim)
+
+##### Enhancements
+
+* Make all `SwiftDeclarationAttributeKind` cases available no matter
+  which version of Swift was used to compile SourceKitten.  
+  [Marcelo Fabri](https://github.com/marcelofabri)
+
+##### Bug Fixes
+
+* Fix issue locating `libsourcekitdInProc.so` on some Linux distributions.  
+  [Mike Hovan](https://github.com/mhovan)
+  [#513](https://github.com/jpsim/SourceKitten/issues/513)
+
+## 0.20.0
+
+This is the last release to support Swift 3.2 and Swift 3.3.
+The next release will require Swift 4.0 or higher.
+
+##### Breaking
+
+* Change type of parameter from `sourcekitd_object_t` to `SourceKitObject?`.  
+  - `File.process(dictionary:cursorInfoRequest:syntaxMap:)`
+  - `Request.customRequest(request:)`
+  - `SwiftDocs.init(file:dictionary:cursorInfoRequest:)`
+  [Norio Nomura](https://github.com/norio-nomura)
+
+* Remove `File.lines:setter`.  
+  [Norio Nomura](https://github.com/norio-nomura)
+
+##### Enhancements
+
+* Add `SwiftDeclarationAttributeKind` that represents declaration attributes in
+  Swift.  
+  [Daniel Metzing](https://github.com/dirtydanee)
+  [#504](https://github.com/jpsim/SourceKitten/issues/504)
+
+* Add `SourceKitObject` that represents `sourcekitd_object_t` in Swift.  
+  [Norio Nomura](https://github.com/norio-nomura)
+  [#489](https://github.com/jpsim/SourceKitten/issues/489)
+
+* Replaced linear index search with binary search in NSString extension.  
+  [Tamas Lustyik](https://github.com/lvsti)
+
+* SourceKit search strategy improved on Linux. Supports swiftenv.  
+  [Alexander Lash](https://github.com/abl)
+
+* Add `elements` case to `SwiftDocKey`.  
+  [Sho Ikeda](https://github.com/ikesyo)
+
+* Added `module_info` command to `sourcekitten` CLI.  
+  [Erik Abair](https://github.com/abaire)
+
+##### Bug Fixes
+
+* Fix `index` command fails using filename with spaces in compiler arguments.  
+  [Norio Nomura](https://github.com/norio-nomura)
+  [#480](https://github.com/jpsim/SourceKitten/issues/480)
+
+* Only allow U+000A and U+000D as line break tokens.  
+  [Marcelo Fabri](https://github.com/marcelofabri)
+  [#475](https://github.com/jpsim/SourceKitten/issues/475)
+
+* Fix ThreadSanitizer reports data race warning in SwiftLint.  
+  [Norio Nomura](https://github.com/norio-nomura)
+  [realm/SwiftLint#2089](https://github.com/realm/SwiftLint/issues/2089)
+
+## 0.19.1
+
+##### Breaking
+
+* None.
+
+##### Enhancements
+
+* None.
+
+##### Bug Fixes
+
+* Fix Swift Package Manager warnings when using SourceKitten targets as
+  dependencies.  
+  [JP Simard](https://github.com/jpsim)
+  [#478](https://github.com/jpsim/SourceKitten/issues/478)
+
+## 0.19.0
+
+##### Breaking
+
+* SourceKitten now requires Xcode 9 and Swift 3.2+ to build.  
+  [Norio Nomura](https://github.com/norio-nomura)
+
+* Deprecated `Request.failableSend()`. Please use `Request.send()` instead.  
+  [Norio Nomura](https://github.com/norio-nomura)
+
+* Some APIs changed to `throws`.  
+  * `File.format(trimmingTrailingWhitespace:useTabs:indentWidth:) throws`
+  * `Structure.init(file:) throws`
+  * `SyntaxMap.init(file:) throws`
+  [Norio Nomura](https://github.com/norio-nomura)
+
+##### Enhancements
+
+* Return `SWIFT_NAME` when generating Objective-C docs.  
+  [Ibrahim Ulukaya](https://github.com/ulukaya)
+
+##### Bug Fixes
+
+* Fix Swift declarations when generating Objective-C docs for generic types.  
+  [John Fairhurst](https://github.com/johnfairh)
+
+## 0.18.4
+
+##### Breaking
+
+* None.
+
+##### Enhancements
+
+* None.
+
+##### Bug Fixes
+
+* Fix Swift 4.0.2 deprecation warnings in dependencies, specifically
+  SWXMLHash.  
+  [Norio Nomura](https://github.com/norio-nomura)
+
+## 0.18.3
+
+##### Breaking
+
+* None.
+
+##### Enhancements
+
+* Support Swift 4.0.2.  
+  [Norio Nomura](https://github.com/norio-nomura)
+  [#435](https://github.com/jpsim/SourceKitten/issues/435)
+
+##### Bug Fixes
+
+* Preserve horizontal alignment in multi-line Swift declarations.  
+  [John Fairhurst](https://github.com/johnfairh)
+
+## 0.18.2
+
+##### Breaking
+
+* None.
+
+##### Enhancements
+
+* Add `tabWidth` parameter (default: `1`) for `lineAndCharacter`.  
+  [Marcel Jackwerth](https://github.com/sirlantis)
+
+* Add `File(pathDeferringReading:)` initializer.  
+  [JP Simard](https://github.com/jpsim)
+
+##### Bug Fixes
+
+* Fix Swift declarations when generating Objective-C docs being truncated where
+  ampersands were included.  
+  [JP Simard](https://github.com/jpsim)
+
 ## 0.18.1
 
 ##### Breaking

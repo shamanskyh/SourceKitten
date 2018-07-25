@@ -6,7 +6,6 @@
 //  Copyright (c) 2015 SourceKitten. All rights reserved.
 //
 
-// swiftlint:disable sorted_imports
 import Commandant
 #if os(Linux)
 import Glibc
@@ -23,6 +22,7 @@ DispatchQueue.global(qos: .default).async {
     registry.register(DocCommand())
     registry.register(FormatCommand())
     registry.register(IndexCommand())
+    registry.register(ModuleInfoCommand())
     registry.register(SyntaxCommand())
     registry.register(StructureCommand())
     registry.register(RequestCommand())

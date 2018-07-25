@@ -84,9 +84,9 @@ class StringTests: XCTestCase {
                        "absolutePathRepresentation() should return the caller if it's already an absolute path")
     }
 
-    func testIsTokenDocumentable() {
+    func testIsTokenDocumentable() throws {
         let source = "struct A { subscript(key: String) -> Void { return () } }"
-        let actual = SyntaxMap(file: File(contents: source)).tokens.filter(source.isTokenDocumentable)
+        let actual = try SyntaxMap(file: File(contents: source)).tokens.filter(source.isTokenDocumentable)
         let expected = [
             SyntaxToken(type: SyntaxKind.identifier.rawValue, offset: 7, length: 1), // `A`
             SyntaxToken(type: SyntaxKind.keyword.rawValue, offset: 11, length: 9),   // `subscript`
@@ -108,21 +108,39 @@ class StringTests: XCTestCase {
         XCTAssertEqual("class ClassA", file.parseDeclaration(dict)!, "should extract declaration from source text")
     }
 
-    func testGenerateDocumentedTokenOffsets() {
+    func testParseMultiLineDeclaration() {
+        let dict: [String: SourceKitRepresentable] = [
+            "key.kind": "source.lang.swift.decl.function.free",
+            "key.offset": Int64(4),
+            "key.bodyoffset": Int64(40),
+            "key.annotated_decl": "",
+            "key.typename": "(Int, Int) -> ()"
+        ]
+        let contents = "    func f(a: Int,\n" +
+                       "           b: Int) {\n" +
+                       "    }\n"
+        let file = File(contents: contents)
+        let parsedDecl = file.parseDeclaration(dict)!
+        let expectedDecl = "func f(a: Int,\n" +
+                           "       b: Int)"
+        XCTAssertEqual(parsedDecl, expectedDecl, "should preserve declaration alignment")
+    }
+
+    func testGenerateDocumentedTokenOffsets() throws {
         let fileContents = "/// Comment\nlet global = 0"
-        let syntaxMap = SyntaxMap(file: File(contents: fileContents))
+        let syntaxMap = try SyntaxMap(file: File(contents: fileContents))
         XCTAssertEqual(fileContents.documentedTokenOffsets(syntaxMap: syntaxMap), [16], "should generate documented token offsets")
     }
 
-    func testDocumentedTokenOffsetsWithSubscript() {
+    func testDocumentedTokenOffsetsWithSubscript() throws {
         let file = File(path: fixturesDirectory + "Subscript.swift")!
-        let syntaxMap = SyntaxMap(file: file)
+        let syntaxMap = try SyntaxMap(file: file)
         XCTAssertEqual(file.contents.documentedTokenOffsets(syntaxMap: syntaxMap), [54], "should generate documented token offsets")
     }
 
-    func testGenerateDocumentedTokenOffsetsEmpty() {
+    func testGenerateDocumentedTokenOffsetsEmpty() throws {
         let fileContents = "// Comment\nlet global = 0"
-        let syntaxMap = SyntaxMap(file: File(contents: fileContents))
+        let syntaxMap = try SyntaxMap(file: File(contents: fileContents))
         XCTAssertEqual(fileContents.documentedTokenOffsets(syntaxMap: syntaxMap).count, 0, "shouldn't detect any documented token offsets when there are none")
     }
 
@@ -144,16 +162,38 @@ class StringTests: XCTestCase {
     func testLineRangeWithByteRange() {
         XCTAssert("".bridge().lineRangeWithByteRange(start: 0, length: 0) == nil)
         let string = "👨‍👩‍👧‍👧\n123"
-        XCTAssert(string.bridge().lineRangeWithByteRange(start: 0, length: 0)! == (1, 1))
-        XCTAssert(string.bridge().lineRangeWithByteRange(start: 0, length: 25)! == (1, 1))
-        XCTAssert(string.bridge().lineRangeWithByteRange(start: 0, length: 26)! == (1, 2))
-        XCTAssert(string.bridge().lineRangeWithByteRange(start: 0, length: 27)! == (1, 2))
-        XCTAssert(string.bridge().lineRangeWithByteRange(start: 27, length: 0)! == (2, 2))
+        XCTAssertEqual(string.bridge().lineRangeWithByteRange(start: 0, length: 0), (1, 1))
+        XCTAssertEqual(string.bridge().lineRangeWithByteRange(start: 0, length: 25), (1, 1))
+        XCTAssertEqual(string.bridge().lineRangeWithByteRange(start: 0, length: 26), (1, 2))
+        XCTAssertEqual(string.bridge().lineRangeWithByteRange(start: 0, length: 27), (1, 2))
+        XCTAssertEqual(string.bridge().lineRangeWithByteRange(start: 27, length: 0), (2, 2))
     }
 
     func testLineAndCharacterForByteOffset() {
         let string = "public typealias 🔳 = QRCode"
-        XCTAssert(string.bridge().lineAndCharacter(forByteOffset: 17)! == (1, 18))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forByteOffset: 17), (1, 18))
+    }
+
+    func testLineAndCharacterForCharacterOffset() {
+        let string = "" +
+        "func foo() {\n" + //     12+1 characters, start=0
+        "    test()\n" +   //     10+1 characters, start=13
+        "  \ttest()\n" +   // 2+t+06+1 characters, start=24
+        "\ttest()\n" +     // t+  06+1 characters
+        "}"
+
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 4, expandingTabsToWidth: 1), (1, 5))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 17, expandingTabsToWidth: 1), (2, 5))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 27 /* expandingTabsToWidth: default */), (3, 4))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 27, expandingTabsToWidth: 1), (3, 4))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 27, expandingTabsToWidth: 2), (3, 5))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 27, expandingTabsToWidth: 4), (3, 5))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 27, expandingTabsToWidth: 8), (3, 9))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 35 /* tabWidth: default */), (4, 2))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 35, expandingTabsToWidth: 1), (4, 2))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 35, expandingTabsToWidth: 2), (4, 3))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 35, expandingTabsToWidth: 4), (4, 5))
+        XCTAssertEqual(string.bridge().lineAndCharacter(forCharacterOffset: 35, expandingTabsToWidth: 8), (4, 9))
     }
 }
 
@@ -161,6 +201,14 @@ typealias LineRangeType = (start: Int, end: Int)
 
 func == (lhs: LineRangeType, rhs: LineRangeType) -> Bool {
     return lhs.start == rhs.start && lhs.end == rhs.end
+}
+
+private func XCTAssertEqual(_ actual: (Int, Int)?, _ expected: (Int, Int), file: StaticString = #file, line: UInt = #line) {
+    XCTAssertNotNil(actual, file: file, line: line)
+
+    if let actual = actual {
+        XCTAssertEqual([actual.0, actual.1], [expected.0, expected.1], file: file, line: line)
+    }
 }
 
 extension StringTests {
@@ -174,13 +222,15 @@ extension StringTests {
             ("testAbsolutePath", testAbsolutePath),
             ("testIsTokenDocumentable", testIsTokenDocumentable),
             ("testParseDeclaration", testParseDeclaration),
+            ("testParseMultiLineDeclaration", testParseMultiLineDeclaration),
             ("testGenerateDocumentedTokenOffsets", testGenerateDocumentedTokenOffsets),
             ("testDocumentedTokenOffsetsWithSubscript", testDocumentedTokenOffsetsWithSubscript),
             ("testGenerateDocumentedTokenOffsetsEmpty", testGenerateDocumentedTokenOffsetsEmpty),
             ("testSubstringWithByteRange", testSubstringWithByteRange),
             ("testSubstringLinesWithByteRange", testSubstringLinesWithByteRange),
             ("testLineRangeWithByteRange", testLineRangeWithByteRange),
-            ("testLineAndCharacterForByteOffset", testLineAndCharacterForByteOffset)
+            ("testLineAndCharacterForByteOffset", testLineAndCharacterForByteOffset),
+            ("testLineAndCharacterForCharacterOffset", testLineAndCharacterForCharacterOffset)
         ]
     }
 }
